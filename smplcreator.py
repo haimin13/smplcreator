@@ -130,17 +130,28 @@ def delete(file_name):
 
 def delete_2():
     global db_data
-    search()
-    number = input("삭제할 행의 번호를 입력하세요 (취소는 'q'): ")
-    if (number == 'q'):
-        print("삭제를 취소합니다.")
-        return
-    
-    number = int(number)
-    selected = db_data.iloc[number]
-    db_data = db_data.drop(number)
-    print(selected)
-    
+    global trash_can
+    selected_idx = []
+    while (True):
+        search()
+        number = input("삭제할 행의 번호를 입력하세요 (취소는 'q', 선택완료는 'c'): ")
+        if (number == 'q'):
+            print("삭제를 취소합니다.")
+            return
+        elif (number == 'c'):
+            if not selected_idx:
+                print("삭제를 취소합니다.")
+                return
+            break
+        else:
+            selected_idx = int(number)
+
+    selected = db_data.iloc[selected_idx]
+    db_data = db_data.drop(selected_idx)
+    selected = selected.drop(columns=['regNo'])
+    selected['wave'] = wave
+
+    trash_can = pd.concat([trash_can, selected], ignore_index = True)
     
     return False
 

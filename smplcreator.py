@@ -3,6 +3,7 @@ import os
 import pandas as pd
 from pyuca import Collator
 from datetime import datetime
+from send2trash import send2trash
 
 warnings.simplefilter(action='ignore', category=pd.errors.SettingWithCopyWarning)
 
@@ -134,25 +135,43 @@ def delete_2():
     selected_idx = []
     while (True):
         search()
-        number = input("삭제할 행의 번호를 입력하세요 (취소는 'q', 선택완료는 'c'): ")
+        number = input("삭제할 행의 번호를 입력하세요 (취소는 'q', 선택완료시 Enter): ")
         if (number == 'q'):
             print("삭제를 취소합니다.")
             return
-        elif (number == 'c'):
+        elif (not number):
             if not selected_idx:
                 print("삭제를 취소합니다.")
                 return
             break
         else:
-            selected_idx = int(number)
+            selected_idx.append(int(number))
 
-    selected = db_data.iloc[selected_idx]
+    if (len(selected_idx) == 1):
+        selected = db_data.iloc[[selected_idx]]
+    else:
+        selected = db_data.iloc[selected_idx]
+
+    print("삭제 대상:\n", selected)
+
     db_data = db_data.drop(selected_idx)
-    selected = selected.drop(columns=['regNo'])
-    selected['wave'] = wave
 
+    for row in selected.itertuples():
+        file_name = row.artist + "; " + row.title + row.fileExt
+
+        file_path = os.path.join(pc_dir, file_name)
+        print(file_path)
+
+        if os.path.exists(file_path):
+            send2trash(file_path)
+            print(f"{file_name} 삭제 완료")
+        else:
+            print(f"{file_name} 파일이 존재하지 않습니다.")
+
+    selected = selected.drop(columns = ['regNo','fileExt'])
+    selected['wave'] = wave + 1
     trash_can = pd.concat([trash_can, selected], ignore_index = True)
-    
+
     return False
 
 def search():
@@ -237,7 +256,7 @@ def custom():
 code_path = os.path.dirname(os.path.realpath(__file__))
 db_dir = code_path + "\\음악DB.csv"
 del_dir = code_path + "\\db_del.csv"
-pc_dir = "D:/음악/음악"
+pc_dir = "D:\\음악\\음악"
 add_dir = code_path + "\\확정"
 db_temp_csv = code_path + "\\sorted_음악DB.csv"
 pc_temp_csv = code_path + "\\sorted_pc_data.csv"

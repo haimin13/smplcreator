@@ -128,6 +128,36 @@ def delete(file_name):
     print(div_line)
     return False
 
+def delete_2():
+    global db_data
+    search()
+    number = input("삭제할 행의 번호를 입력하세요 (취소는 'q'): ")
+    if (number == 'q'):
+        print("삭제를 취소합니다.")
+        return
+    
+    number = int(number)
+    selected = db_data.iloc[number]
+    db_data = db_data.drop(number)
+    print(selected)
+    
+    
+    return False
+
+def search():
+    query = input("검색어를 입력하세요: ")
+    if not query:
+        print("빈 문자열은 검색되지 않습니다.")
+        return
+    target_columns = ["artist", "title"]
+    mask = False
+    for col in target_columns:
+        mask = mask | db_data[col].str.contains(query, na=False)
+    matched_rows = db_data[mask]
+    print(div_line)
+    print(matched_rows)
+    print(div_line)
+
 
 def extract_data(file_name):
     file_data = file_name.split('; ')
@@ -188,7 +218,7 @@ def save():
 
 
 def custom():
-    {}
+    pass
         
 
 # 검색기능 추가 요망
@@ -259,7 +289,8 @@ while (True):
         custom()
 
     elif command == "addauto":
-        add_auto()
-    
-
-# 
+        is_saved = add_auto()
+    elif command == "search":
+        search()
+    elif command == "remove":
+        is_saved = delete_2()

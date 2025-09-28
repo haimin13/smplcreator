@@ -129,7 +129,7 @@ def delete(file_name):
     print(div_line)
     return False
 
-def delete_2():
+def remove():
     global db_data
     global trash_can
     selected_idx = []
@@ -152,15 +152,13 @@ def delete_2():
     else:
         selected = db_data.iloc[selected_idx]
 
-    print("삭제 대상:\n", selected)
+    print("삭제 대상:\n", div_line + selected + div_line)
 
     db_data = db_data.drop(selected_idx)
 
     for row in selected.itertuples():
         file_name = row.artist + "; " + row.title + row.fileExt
-
         file_path = os.path.join(pc_dir, file_name)
-        print(file_path)
 
         if os.path.exists(file_path):
             send2trash(file_path)
@@ -184,9 +182,7 @@ def search():
     for col in target_columns:
         mask = mask | db_data[col].str.contains(query, na=False)
     matched_rows = db_data[mask]
-    print(div_line)
-    print(matched_rows)
-    print(div_line)
+    print(div_line + matched_rows + div_line)
 
 
 def extract_data(file_name):
@@ -264,11 +260,12 @@ div_line = "\n========================================\n"
 help = """
     quit - 프로그램을 종료합니다.
     compare - 실제 파일과 DB의 항목을 비교합니다.
-    del [삭제할 파일] - DB에 있을 경우 DB에서 제거합니다. DB에 없을 경우 파일을 제거합니다.
+    remove - DB에서 음악을 찾아 DB 및 파일을 삭제합니다.
     add - DB에 항목을 추가합니다.
     save - 지금까지의 변경사항을 DB파일에 저장합니다.
     renumber - 현재 db 순서대로 regNo를 재지정합니다.
     rearrange - regNo, artist, title을 비교하여 항목 순서를 재정렬합니다.
+    search - 아티스트, 타이틀에서 검색합니다.
     custom - 코드 상에서 정의한 함수를 실행합니다.
     """
 
@@ -307,20 +304,18 @@ while (True):
         print(div_line + help + div_line)
     elif command == "compare":
         is_saved = compare_db_and_file()
-    elif command[:3] == "del":
-        is_saved = delete(command[4:])
     elif command == "add":
-        is_saved = add()
+        is_saved = add_auto()
     elif command == "renumber":
         is_saved = renumber()
     elif command == "rearrange":
         is_saved = rearrange()
     elif command == "custom":
         custom()
-
-    elif command == "addauto":
-        is_saved = add_auto()
     elif command == "search":
         search()
     elif command == "remove":
-        is_saved = delete_2()
+        is_saved = remove()
+
+    #elif command[:3] == "del":
+        #is_saved = delete(command[4:])

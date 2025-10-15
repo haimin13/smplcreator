@@ -132,10 +132,11 @@ def delete(file_name):
 def remove():
     global db_data
     global trash_can
+
     selected_idx = []
     while (True):
         search()
-        number = input("삭제할 행의 번호를 입력하세요 (취소는 'q', 선택완료시 Enter): ")
+        number = input("삭제할 행의 번호를 입력하세요 (취소는 'q', 선택완료시 Enter): ").strip()
         if (number == 'q'):
             print("삭제를 취소합니다.")
             return
@@ -154,7 +155,7 @@ def remove():
 
     print("삭제 대상:\n", div_line + selected + div_line)
 
-    db_data = db_data.drop(selected_idx)
+    db_data = db_data.drop(selected_idx) # 해당 인덱스의 행을 DB에서 제거
 
     for row in selected.itertuples():
         file_name = row.artist + "; " + row.title + row.fileExt
@@ -168,12 +169,12 @@ def remove():
 
     selected = selected.drop(columns = ['regNo','fileExt'])
     selected['wave'] = wave + 1
-    trash_can = pd.concat([trash_can, selected], ignore_index = True)
+    trash_can = pd.concat([trash_can, selected], ignore_index = True) #db_del에 추가
 
     return False
 
 def search():
-    query = input("검색어를 입력하세요: ")
+    query = input("검색어를 입력하세요: ").strip()
     if not query:
         print("빈 문자열은 검색되지 않습니다.")
         return
@@ -284,7 +285,7 @@ wave = trash_can.iloc[-1,-1]
 
 
 while (True):
-    command = input(">>>명령을 입력하세요(help - 명령어 목록): ")
+    command = input(">>>명령을 입력하세요(help - 명령어 목록): ").strip()
     if command == "quit":
         if not is_saved:
             while (True):

@@ -1,11 +1,20 @@
 import warnings
 import os
 import pandas as pd
+import shutil
 from pyuca import Collator
 from datetime import datetime
 from send2trash import send2trash
 
 warnings.simplefilter(action='ignore', category=pd.errors.SettingWithCopyWarning)
+
+
+def is_integer(s):
+    try:
+        int(s)
+        return True
+    except ValueError:
+        return False
 
 
 def compare_db_and_file():
@@ -23,8 +32,8 @@ def compare_db_and_file():
     db_data.sort_values(by="fileName", key = lambda x: x.map(collator.sort_key), inplace=True)  # 윈도우 파일 탐색기 정렬 기준과 동일하게 정렬
     pc_data.sort_values(by="fileName", key = lambda x: x.map(collator.sort_key), inplace=True)
 
-    db_data.to_csv(db_temp_csv, index=False)    # 디버깅용 임시파일
-    pc_data.to_csv(pc_temp_csv, index=False)    # 디버깅용 임시파일
+    # db_data.to_csv(db_temp_csv, index=False)    # 디버깅용 임시파일
+    # pc_data.to_csv(pc_temp_csv, index=False)    # 디버깅용 임시파일
     
     
     i, j = (0, 0)
@@ -84,6 +93,8 @@ def add():
 
     return False
 
+# 이미 db에 있는 음악을 추가하려고 할때는?
+# 중복검사?
 def add_auto():
     global db_data
     db_len = len(db_data)
@@ -91,18 +102,23 @@ def add_auto():
     regDate = datetime.now().strftime("%Y-%m-%d %H:%M")
     print(f"파일 개수: {len(file_list)}")
     print(f"등록 시간: {regDate}")
-    for i in range(len(file_list)):
-        is_valid, artist, title, file_ext = extract_data(file_list[i])
+
+    cnt = 0
+    for i, file in enumerate(file_list):
+        is_valid, artist, title, file_ext = extract_data(file)
         if (not is_valid): 
-            print(f"다음 파일 등록이 실패하였습니다: {file_list[i]}")
+            print(f"다음 파일 등록이 실패하였습니다: {file}")
             continue
-        new_row = pd.DataFrame({"artist":[artist], "title": [title], "fileExt": [file_ext], "regDate": [regDate],
-                               "regNo": [db_len + i]})
-        db_data = pd.concat([db_data, new_row], ignore_index=True)
+        else:
+            added_file_list.append(file)
+            cnt += 1
+            new_row = pd.DataFrame({"artist":[artist], "title": [title], "fileExt": [file_ext], "regDate": [regDate],
+                                "regNo": [db_len + cnt]})
+            db_data = pd.concat([db_data, new_row], ignore_index=True)
 
     return False
 
-
+# 삭제목록 받아서 자동으로 삭제하는 기능 추가하기
 def delete(file_name):
     global trash_can
 
@@ -135,17 +151,32 @@ def remove():
 
     selected_idx = []
     while (True):
-        search()
-        number = input("삭제할 행의 번호를 입력하세요 (취소는 'q', 선택완료시 Enter): ").strip()
-        if (number == 'q'):
+        try:
+            print(f"선택을 완료했을 경우 Ctrl+C를 눌러주세요. 개수[{len(selected_idx)}]")
+            result = search()
+        except KeyboardInterrupt:
+            if not selected_idx:
+                print()
+                return
+            else:
+                print()
+                break
+        if not result: continue
+        number = input(f"삭제할 행의 인덱스를 입력하세요 (삭제 취소는 'q', 재검색은 'r', 선택완료시 Enter): ").strip()
+        if (number.lower() == 'q'):
             print("삭제를 취소합니다.")
             return
-        elif (not number):
+        elif (number.lower() == 'r'):
+            continue
+        elif (number and not is_integer(number)):
+            print("잘못된 입력입니다.")
+        elif (not number): # 빈 입력
             if not selected_idx:
-                print("삭제를 취소합니다.")
+                print("선택된 파일이 없어 삭제를 취소합니다.")
                 return
             break
         else:
+            print(f"선택된 파일: {list(db_data.iloc[int(number)])}")
             selected_idx.append(int(number))
 
     if (len(selected_idx) == 1):
@@ -153,19 +184,13 @@ def remove():
     else:
         selected = db_data.iloc[selected_idx]
 
-    print("삭제 대상:\n", div_line + selected + div_line)
+    print("삭제 대상:\n", div_line, selected, div_line)
 
     db_data = db_data.drop(selected_idx) # 해당 인덱스의 행을 DB에서 제거
 
     for row in selected.itertuples():
         file_name = row.artist + "; " + row.title + row.fileExt
-        file_path = os.path.join(pc_dir, file_name)
-
-        if os.path.exists(file_path):
-            send2trash(file_path)
-            print(f"{file_name} 삭제 완료")
-        else:
-            print(f"{file_name} 파일이 존재하지 않습니다.")
+        removed_file_list.append(file_name)
 
     selected = selected.drop(columns = ['regNo','fileExt'])
     selected['wave'] = wave + 1
@@ -176,14 +201,18 @@ def remove():
 def search():
     query = input("검색어를 입력하세요: ").strip()
     if not query:
-        print("빈 문자열은 검색되지 않습니다.")
-        return
+        print("빈 문자열은 검색되지 않습니다.\n")
+        return False
     target_columns = ["artist", "title"]
     mask = False
     for col in target_columns:
-        mask = mask | db_data[col].str.contains(query, na=False)
+        mask = mask | db_data[col].str.contains(query, case=False, na=False)
     matched_rows = db_data[mask]
-    print(div_line + matched_rows + div_line)
+    if matched_rows.empty:
+        print("검색 결과가 없습니다.\n")
+        return False
+    print(div_line, matched_rows, div_line)
+    return True
 
 
 def extract_data(file_name):
@@ -228,12 +257,36 @@ def renumber():
         db_data.iloc[i,4] = i+1
     return False
 
+def move_files():
+    print(div_line)
+    print("파일 이동을 시작합니다.")
+    if (added_file_list): print("추가된 파일을 이동시킵니다.")
+    for file in added_file_list:
+        src = os.path.join(add_dir, file)
+        dst = os.path.join(pc_dir, file)
+        shutil.move(src, dst)
+        print(f"{file} 이동 완료")
+    added_file_list.clear()
+
+    if (removed_file_list): print("삭제된 파일을 이동시킵니다.")
+    for file in removed_file_list:
+        src = os.path.join(pc_dir, file)
+        if os.path.exists(src):
+            send2trash(src)
+            print(f"{file} 삭제 완료")
+        else:
+            print(f"{file} 파일이 존재하지 않습니다.")
+
+    removed_file_list.clear()
+    print(div_line)
+    return
 
 def save():
     if (db_data is not None):
         rearrange()
         renumber()
         create_smpl()
+        move_files()
         db_data.to_csv(db_dir, index=False)
         trash_can.to_csv(del_dir, index=False)
 
@@ -282,6 +335,9 @@ is_saved = True
 db_data = pd.read_csv(db_dir)
 trash_can = pd.read_csv(del_dir)
 wave = trash_can.iloc[-1,-1]
+
+added_file_list = []
+removed_file_list = []
 
 
 while (True):

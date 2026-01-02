@@ -93,7 +93,6 @@ def add():
 
     return False
 
-# 이미 db에 있는 음악을 추가하려고 할때는?
 # 중복검사?
 def add_auto():
     global db_data
@@ -177,14 +176,18 @@ def remove():
             break
         else:
             print(f"선택된 파일: {list(db_data.iloc[int(number)])}")
-            selected_idx.append(int(number))
+            if int(number) in selected_idx:
+                print("이미 선택된 파일입니다.")
+            else:
+                selected_idx.append(int(number))
 
     if (len(selected_idx) == 1):
         selected = db_data.iloc[[selected_idx]]
     else:
         selected = db_data.iloc[selected_idx]
 
-    print("삭제 대상:\n", div_line, selected, div_line)
+    print("삭제 대상:\n")
+    print(div_line, selected, div_line)
 
     db_data = db_data.drop(selected_idx) # 해당 인덱스의 행을 DB에서 제거
 
@@ -301,7 +304,8 @@ def custom():
     pass
         
 
-# 검색기능 추가 요망
+# 아티스트 이름 변경 수정 기능 필요
+# search에서 db 출력 예쁘게 하기?
 
 code_path = os.path.dirname(os.path.realpath(__file__))
 db_dir = code_path + "\\음악DB.csv"
